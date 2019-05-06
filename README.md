@@ -30,7 +30,8 @@ for your project (Meteor, plain Node.js, Java, Python and everything else).
 Kubernetes consists of tools and a cluster. 
 
 The cluster is where your apps are going to run. The cluster works on a number of physical or cloud machines bound with network. 
-These machines are called _Nodes_.
+These machines are called _Nodes_ and _Mater Nodes_. Your apps and other customs run on _Nodes_ while _Master Nodes_ are
+the Kubernetes cores.
 
 The tools are used to manipulate the cluster and everything inside of it. 
 Most of the time you will create YAML files (declarative _instructions_) and pass them (_apply_)
@@ -94,12 +95,12 @@ It has _free_ pricing plan for individuals which allows you to have *unlimited* 
 [Create an account on Docker Hub](https://hub.docker.com/). You will need **username**, **email** and **password**.
 
 Now you can authenticate on your building machine with this command:
-```
+```bash
 docker login --username your_username --password your_password
 ```
 
 To build a Meteor project run the following command in the terminal from your project's root directory:
-```
+```bash
 docker build -t your_username/project_name:some_tag .
 ```
 - `.` means that Dockerfile is in the same directory.
@@ -107,12 +108,20 @@ docker build -t your_username/project_name:some_tag .
 You can use a projects build version in place of `some_tag` like `1.0.0`.
 
 After the build you should upload the Image to Docker Registry:
-```
+```bash
 docker push your_username/project_name
 ```
 
 ### 3. Running a Kubernetes Cluster
+**WIP**
+[https://cloud.google.com/kubernetes-engine/docs/quickstart](https://cloud.google.com/kubernetes-engine/docs/quickstart).
 
+1. Read _Before you begin_.
+2. Choose a local shell `kubectl`.
+3. Configuring default settings for gcloud.
+4. Creating a GKE cluster.
+
+After that you can move on reading this guide.
 
 ### 4.0 What is a Secret
 As we can find in the official docs:
@@ -122,7 +131,7 @@ As we can find in the official docs:
 
 ### 4.1 Creating a Secret for Docker Hub
 To create a Secret for pulling Images from Docker Registry run:
-```
+```bash
 kubectl create secret docker-registry regsec \
 --docker-server=https://index.docker.io/v1/ \
 --docker-username=your_username \
@@ -144,7 +153,7 @@ Secrets are good for storing environment variables for further use inside the co
 We going to create secrets both for **METEOR_SETTINGS** and **MONGO_URL** environment variables.
 
 Let's assume you have a file with Meteor settings called _meteor_settings.json_.
-```
+```json
 {
   "public": {},
   "someThingCustom": {
@@ -154,7 +163,9 @@ Let's assume you have a file with Meteor settings called _meteor_settings.json_.
 }
 ```
 To create a Secret from this file run:
-```kubectl create secret generic meteor-settings --from-file=./meteor_settings.json```
+```bash
+kubectl create secret generic meteor-settings --from-file=./meteor_settings.json
+```
 
 This will create a Secret with name `my-meteor-settings` which includes only one key `meteor_settings.json`.
 
@@ -168,7 +179,7 @@ mongodb://login:password@ip:port/db
 Replace **login**, **password**, **ip**, **port** and **db** with your data.
 
 Run:
-```
+```bash
 kubectl create secret generic mongo-url --from-file=./mongo_url.txt
 ```
 
@@ -178,12 +189,12 @@ You will see how to use created ENVs in deployment section of this guide.
 If you need to update a Secret the easiest way is to delete the Secret and create it again.
 
 To delete a Secret run:
-```
+```bash
 kubectl delete secret secret_name
 ```
 
 If you want to update a Secret created from a file you can use this command:
-```
+```bash
 kubectl create secret generic secret_name \
     --from-file=./file.name --dry-run -o yaml | 
   		kubectl apply -f -
@@ -198,7 +209,7 @@ this instruction in JSON or use commands from terminal it is compiled to YAML).
 
 So if you need to apply the instruction to Kubernetes from a file or update a
 previously applied instruction you can use one simple command for both tasks:
-```
+```bash
 kubectl apply -f your_file
 ```
 
@@ -211,7 +222,7 @@ Read more about [different API versions of YAML instructions](https://matthewpal
 To deploy your app you should create a Deployment.
 
 Create the following YAML file (_deployment.yml_). Everything you need is commented:
-```
+```YAML
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -282,7 +293,7 @@ status: {}
 In this example we assume that the app uses folders `/userimages` and `/userdocuments` for temp files.
 
 For this we describe `volumes` type of `emptyDir` (you can check other types of `volumes` [here](https://kubernetes.io/docs/concepts/storage/volumes/#local)):
-```
+```YAML
 volumes:
 - emptyDir: {}
   name: images
@@ -291,7 +302,7 @@ volumes:
 ```
 
 And mount them with corresponding dir names:
-```
+```YAML
 volumeMounts:
 - mountPath: /userimages
   name: images
@@ -300,7 +311,7 @@ volumeMounts:
 ```
 
 To create a Deployment run:
-```
+```bash
 kubectl apply -f deployment.yml
 ```
 
@@ -313,7 +324,7 @@ To update your app in Kubernetes cluster simply build new image with new tag and
 Then update _deployment.yml_ with new image name and tag `image: your_username/project_name:some_tag`.
 
 Run to apply changes:
-```
+```bash
 kubectl apply -f deployment.yml
 ```
 
@@ -321,7 +332,7 @@ kubectl apply -f deployment.yml
 Kubernetes allows you to auto scale your deployment based on CPU usage.
 
 For this create the following YAML file (_autoscaler.yml_):
-```
+```YAML
 apiVersion: autoscaling/v1
 kind: HorizontalPodAutoscaler
 metadata:
@@ -345,7 +356,7 @@ where:
 Don't forget to replace `my-project` with the name of deployed app.
 
 To apply this YAML instruction run:
-```
+```bash
 kubectl apply -f autoscaler.yml
 ```
 
@@ -360,7 +371,7 @@ To make it visible first of all you should create a corresponding Service for yo
 [Read more.](https://kubernetes.io/docs/concepts/services-networking/service/)
 
 Create the following YAML file (_service.yml_):
-```
+```YAML
 kind: Service
 apiVersion: v1
 metadata:
@@ -378,7 +389,7 @@ This service provides _80_ port on your pods as _http-server_.
 Don't forget to replace `my-project` with the name of deployed app.
 
 To apply this YAML instruction run:
-```
+```bash
 kubectl apply -f service.yml
 ```
 
@@ -401,7 +412,7 @@ As you might guess this Ingress Controller will use _nginx_ for load balancing a
 We will use simplest router possible which sends every HTTP request for your domain to one Service.
 
 Create the following YAML file (_ingress.yml_):
-```
+```YAML
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
@@ -432,14 +443,14 @@ Don't forget to replace `my.domain`, `my-project-service`, `nginx.org/websocket-
 `my-project` with your data.
 
 Apply file with:
-```
+```bash
 kubectl apply -f ingress.yml
 ```
 
 Now you have to bind your domain with the load balancer's IP.
 
 To check Ingress Controller IP use command:
-```
+```bash
 kubectl get svc -n ingress-nginx | grep ingress | grep LoadBalancer
 ```
 
@@ -448,7 +459,7 @@ The last step is to delegate DNS _A record_ for your domain and the obtained IP.
 ### 10.1 HTTPS with custom certificates
 If you have custom TLS certificate that you want to use for HTTPS you need to create an corresponding Secret
 with `kubectl`:
-```
+```bash
 kubectl create secret tls test-secret-tls --cert=server.crt --key=server.key
 ```
 
@@ -458,7 +469,7 @@ where:
 - **server.key** is the private key
 
 Now you can modify your _ingress.yml_:
-```
+```YAML
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
@@ -486,7 +497,7 @@ spec:
 ```
 
 As you can see we added `tls` to `spec` and described there the host we want to accociate with the Ingress and the Secret that holds certificate:
-```
+```YAML
 tls:
 - hosts:
   - my.domain

@@ -148,7 +148,7 @@ Let's assume you have a file with Meteor settings called _meteor_settings.json_.
 {
   "public": {},
   "someThingCustom": {
-  			  "first": 0,
+  		"first": 0,
     "last": 10
   }
 }
